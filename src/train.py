@@ -32,50 +32,7 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.data)
 
-# class DuelingDeepQNetwork(nn.Module):
-#     def __init__(self, env):
-#         super().__init__()
-#         self.state_dim = env.observation_space.shape[0]
-#         self.action_dim = env.action_space.n
-#         nb_neurons = 256  # Number of neurons in each layer
 
-#         # Common stream
-#         self.fc1 = nn.Linear(self.state_dim, nb_neurons)
-#         self.fc2 = nn.Linear(nb_neurons, nb_neurons)
-#         self.fc3 = nn.Linear(nb_neurons, nb_neurons)
-#         # You can continue adding more layers here as needed
-
-#         # Value stream
-#         self.value_fc1 = nn.Linear(nb_neurons, nb_neurons)
-#         self.value_fc2 = nn.Linear(nb_neurons, nb_neurons)  # Additional layers for depth
-#         self.value = nn.Linear(nb_neurons, 1)  # Outputs a single value V(s)
-
-#         # Advantage stream
-#         self.advantage_fc1 = nn.Linear(nb_neurons, nb_neurons)
-#         self.advantage_fc2 = nn.Linear(nb_neurons, nb_neurons)  # Additional layers for depth
-#         self.advantage = nn.Linear(nb_neurons, self.action_dim)  # Outputs A(s, a) for each action
-
-#     def forward(self, x):
-#         # Common stream
-#         x = F.relu(self.fc1(x))
-#         x = F.relu(self.fc2(x))
-#         x = F.relu(self.fc3(x))
-#         # Add more layers if needed
-
-#         # Value stream
-#         value = F.relu(self.value_fc1(x))
-#         value = F.relu(self.value_fc2(value))
-#         value = self.value(value)
-
-#         # Advantage stream
-#         advantage = F.relu(self.advantage_fc1(x))
-#         advantage = F.relu(self.advantage_fc2(advantage))
-#         advantage = self.advantage(advantage)
-
-#         # Combine the value and advantage streams
-#         q_values = value + (advantage - advantage.mean(dim=1, keepdim=True))
-
-#         return q_values
     
 class DeepQNetwork(nn.Module):
     def __init__(self, env):
@@ -97,10 +54,7 @@ class DeepQNetwork(nn.Module):
         x_3 = self.fc4(x)
         x = F.elu(x+x_3)
         x = self.fc5(x)
-        # x = F.relu(self.fc1(x))
-        # x = F.relu(self.fc2(x))
-        # x = F.relu(self.fc3(x))
-        # x = F.relu(self.fc4(x))
+        
         return x
 
 
@@ -126,7 +80,7 @@ class ProjectAgent:
         lr = 0.001
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         self.nb_gradient_steps = 2
-        self.update_target_strategy = 'ema' #or ema
+        self.update_target_strategy = 'ema' 
         self.update_target_freq = 500
         self.update_target_tau = 0.005
         self.monitoring_nb_trials =  0
@@ -160,37 +114,21 @@ class ProjectAgent:
             MC_discounted_reward.append(discounted_reward)
         return np.mean(MC_discounted_reward), np.mean(MC_total_reward)
 
-    # def V_initial_state(self, env, nb_trials):
-    #     with torch.no_grad():
-    #         for _ in range(nb_trials):
-    #             val = []
-    #             x,_ = env.reset()
-    #             val.append(self.model(torch.Tensor(x).unsqueeze(0).to(device)).max().item())
-    #     return np.mean(val)
 
-    # def gradient_step(self):
-    #     if len(self.memory) > self.batch_size:
-    #         X, A, R, Y, D = self.memory.sample(self.batch_size)
-    #         QYmax = self.target_model(Y).max(1)[0].detach()
-    #         update = torch.addcmul(R, 1-D, QYmax, value=self.gamma)
-    #         QXA = self.model(X).gather(1, A.to(torch.long).unsqueeze(1))
-    #         loss = self.criterion(QXA, update.unsqueeze(1))
-    #         self.optimizer.zero_grad()
-    #         loss.backward()
-    #         self.optimizer.step()
 
     def gradient_step(self):
         if len(self.memory) > self.batch_size:
             X, A, R, Y, D = self.memory.sample(self.batch_size)
 
-            # Use the main model to select the action
+            # Double Q-Learning
+            
             with torch.no_grad():
-                action_indices = self.model(Y).max(1)[1].unsqueeze(1)  # This is the main change for Double Q-Learning
+                action_indices = self.model(Y).max(1)[1].unsqueeze(1) 
         
             # Use the target model to evaluate the action
-            QYmax = self.target_model(Y).gather(1, action_indices).squeeze()  # This is the main change for Double Q-Learning
+            QYmax = self.target_model(Y).gather(1, action_indices).squeeze() 
         
-            update = R + (1 - D) * self.gamma * QYmax  # Fixed to ensure proper broadcasting
+            update = R + (1 - D) * self.gamma * QYmax  
         
             QXA = self.model(X).gather(1, A.to(torch.long).unsqueeze(1))
             loss = self.criterion(QXA, update.unsqueeze(1))
@@ -200,9 +138,7 @@ class ProjectAgent:
 
     def train(self, env, max_episode):
         episode_return = []
-        #MC_avg_total_reward = []
-        #MC_avg_discounted_reward = []
-        #V_init_state = []
+        
         episode = 0
         best_so_far = 0
         episode_cum_reward = 0
@@ -245,11 +181,7 @@ class ProjectAgent:
                 episode += 1
                 # Monitoring
                 if self.monitoring_nb_trials>0:
-                    #MC_dr, MC_tr = self.MC_eval(env, self.monitoring_nb_trials)
-                    #V0 = self.V_initial_state(env, self.monitoring_nb_trials)
-                    #MC_avg_total_reward.append(MC_tr)
-                    #MC_avg_discounted_reward.append(MC_dr)
-                    #V_init_state.append(V0)
+                
                     episode_return.append(episode_cum_reward)
                     print("Episode ", '{:2d}'.format(episode),
                           ", epsilon ", '{:6.2f}'.format(epsilon),
@@ -308,6 +240,4 @@ def pre_fill_buffer(env,agent):
             x = y
         evolution.update(1)
     evolution.close()
-
-
 
