@@ -4,11 +4,9 @@ import gymnasium as gym
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
 import random
 from copy import deepcopy
 import numpy as np
-import time
 import tqdm
 
 env = TimeLimit(
